@@ -1,4 +1,5 @@
 # Gerador de Frase
+# Tema: Amizade
 
 12217002 - Jéssica Pereira Rangel
 
@@ -6,5 +7,5 @@
 
 122100007 - Matheus Matos Rodrigues 
 
-![image](https://github.com/Jessrangelp/gerador1/blob/main/Imagem/1.png)
-![image](https://github.com/Jessrangelp/gerador1/blob/main/Imagem/2.png)
+![image](https://github.com/Jessrangelp/geradordefrase/blob/main/Imagem/1.png)
+![image](https://github.com/Jessrangelp/geradordefrase/blob/main/Imagem/2.png)
