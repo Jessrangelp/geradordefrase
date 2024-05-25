@@ -1,7 +1,9 @@
-import 'package:english_words/english_words.dart';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
+import 'dart:convert';
 
 
 void main() {
@@ -9,7 +11,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +21,7 @@ class MyApp extends StatelessWidget {
         title: 'Namer App',
         theme: ThemeData(
           useMaterial3: true,
-          //colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
         ),
         home: MyHomePage(),
       ),
@@ -29,28 +30,52 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
+  List<String> phrases = [];
+  late String currentPhrase;
 
-  void getNext() {
-    current = WordPair.random();
-    notifyListeners();
+  MyAppState() {
+    currentPhrase = "Loading...";
+    loadPhrases();
   }
 
-//adicionar campo favorito
-  var favorites = <WordPair>[];
+  Future<void> loadPhrases() async {
+    try {
+      final String data = await rootBundle.loadString('Frases/frases.txt');
+      phrases = LineSplitter().convert(data);
+      if (phrases.isNotEmpty) {
+        getNextPhrase();
+      } else {
+        currentPhrase = "No phrases available.";
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Failed to load phrases: $e');
+      currentPhrase = "Failed to load phrases: $e";
+      notifyListeners();
+    }
+  }
 
-  void toggleFavorite() {
-    if (favorites.contains(current)) {
-      favorites.remove(current);
+  void getNextPhrase() {
+    final random = Random();
+    if (phrases.isNotEmpty) {
+      currentPhrase = phrases[random.nextInt(phrases.length)];
     } else {
-      favorites.add(current);
+      currentPhrase = "No phrases available.";
     }
     notifyListeners();
   }
-// até aqui  
+
+  var favorites = <String>[];
+
+  void toggleFavorite() {
+    if (favorites.contains(currentPhrase)) {
+      favorites.remove(currentPhrase);
+    } else {
+      favorites.add(currentPhrase);
+    }
+    notifyListeners();
+  }
 }
-
-
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -66,50 +91,51 @@ class _MyHomePageState extends State<MyHomePage> {
     switch (selectedIndex) {
       case 0:
         page = GeneratorPage();
-        break; // Adicionado break
+        break;
       case 1:
         page = FavoritesPage();
-        break; // Adicionado break
+        break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-      return Scaffold(
-        body: Row(
-          children: [
-            SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth >= 600,  
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.favorite),
-                    label: Text('Favorites'),
-                  ),
-                ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
+        return Scaffold(
+          body: Row(
+            children: [
+              SafeArea(
+                child: NavigationRail(
+                  extended: constraints.maxWidth >= 600,
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.home),
+                      label: Text('Home'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.favorite),
+                      label: Text('Favorites'),
+                    ),
+                  ],
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (value) {
+                    setState(() {
+                      selectedIndex = value;
+                    });
+                  },
+                ),
               ),
-            ),
-            Expanded(
-              child: Container(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: page,
+              Expanded(
+                child: Container(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: page,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    });
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -117,10 +143,9 @@ class GeneratorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
-    var pair = appState.current;
 
     IconData icon;
-    if (appState.favorites.contains(pair)) {
+    if (appState.favorites.contains(appState.currentPhrase)) {
       icon = Icons.favorite;
     } else {
       icon = Icons.favorite_border;
@@ -130,7 +155,7 @@ class GeneratorPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          BigCard(pair: pair), //Palavras aleatórias geradas a partir deste comando gerando a nova classe BigCard
+          BigCard(phrase: appState.currentPhrase),
           SizedBox(height: 10),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -145,7 +170,7 @@ class GeneratorPage extends StatelessWidget {
               SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
-                  appState.getNext();
+                  appState.getNextPhrase();
                 },
                 child: Text('Next'),
               ),
@@ -157,39 +182,30 @@ class GeneratorPage extends StatelessWidget {
   }
 }
 
-
-
 class BigCard extends StatelessWidget {
-  const BigCard({
-    super.key,
-    required this.pair,
-  });
+  final String phrase;
 
-  final WordPair pair;
+  const BigCard({required this.phrase});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); //selecionar o tema atual com o "Theme.of(context)"
-    final style = theme.textTheme.displayMedium!.copyWith( 
+    final theme = Theme.of(context);
+    final style = theme.textTheme.displayMedium!.copyWith(
       color: theme.colorScheme.onPrimary,
     );
 
     return Card(
-      color: theme.colorScheme.primary, // define a cor em "colorScheme"
+      color: theme.colorScheme.primary,
       child: Padding(
         padding: const EdgeInsets.all(20),
-
         child: Text(
-          pair.asLowerCase,
+          phrase,
           style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
-
         ),
       ),
     );
   }
 }
-
 
 class FavoritesPage extends StatelessWidget {
   @override
@@ -206,17 +222,14 @@ class FavoritesPage extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:'),
+          child: Text('You have ${appState.favorites.length} favorites:'),
         ),
-        for (var pair in appState.favorites)
+        for (var phrase in appState.favorites)
           ListTile(
             leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
+            title: Text(phrase),
           ),
       ],
     );
   }
 }
-
-
