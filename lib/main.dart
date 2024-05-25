@@ -1,10 +1,8 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import 'dart:convert';
-
 
 void main() {
   runApp(MyApp());
@@ -20,8 +18,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Namer App',
         theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+          colorScheme: ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 144, 205, 230)), 
         ),
         home: MyHomePage(),
       ),
@@ -58,7 +55,8 @@ class MyAppState extends ChangeNotifier {
   void getNextPhrase() {
     final random = Random();
     if (phrases.isNotEmpty) {
-      currentPhrase = phrases[random.nextInt(phrases.length)];
+      phrases.shuffle();
+      currentPhrase = phrases.removeLast();
     } else {
       currentPhrase = "No phrases available.";
     }
@@ -67,12 +65,17 @@ class MyAppState extends ChangeNotifier {
 
   var favorites = <String>[];
 
-  void toggleFavorite() {
-    if (favorites.contains(currentPhrase)) {
-      favorites.remove(currentPhrase);
+  void toggleFavorite(String phrase) {
+    if (favorites.contains(phrase)) {
+      favorites.remove(phrase);
     } else {
-      favorites.add(currentPhrase);
+      favorites.add(phrase);
     }
+    notifyListeners();
+  }
+
+  void removeFavorite(String phrase) {
+    favorites.remove(phrase);
     notifyListeners();
   }
 }
@@ -99,42 +102,29 @@ class _MyHomePageState extends State<MyHomePage> {
         throw UnimplementedError('no widget for $selectedIndex');
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Scaffold(
-          body: Row(
-            children: [
-              SafeArea(
-                child: NavigationRail(
-                  extended: constraints.maxWidth >= 600,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.home),
-                      label: Text('Home'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.favorite),
-                      label: Text('Favorites'),
-                    ),
-                  ],
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (value) {
-                    setState(() {
-                      selectedIndex = value;
-                    });
-                  },
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  child: page,
-                ),
-              ),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Gerador de Frases'),
+      ),
+      body: page,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: (value) {
+          setState(() {
+            selectedIndex = value;
+          });
+        },
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-        );
-      },
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -155,19 +145,28 @@ class GeneratorPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Text(
+            'Tema: Amizade', // Texto inicial
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 20),
           BigCard(phrase: appState.currentPhrase),
-          SizedBox(height: 10),
+          SizedBox(height: 20),
           Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
                 onPressed: () {
-                  appState.toggleFavorite();
+                  appState.toggleFavorite(appState.currentPhrase);
                 },
                 icon: Icon(icon),
                 label: Text('Like'),
               ),
-              SizedBox(width: 10),
+              SizedBox(width: 20),
               ElevatedButton(
                 onPressed: () {
                   appState.getNextPhrase();
@@ -190,7 +189,7 @@ class BigCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.displayMedium!.copyWith(
+    final style = theme.textTheme.headline6!.copyWith(
       color: theme.colorScheme.onPrimary,
     );
 
@@ -218,18 +217,22 @@ class FavoritesPage extends StatelessWidget {
       );
     }
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('You have ${appState.favorites.length} favorites:'),
-        ),
-        for (var phrase in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(phrase),
+    return ListView.builder(
+      itemCount: appState.favorites.length,
+      itemBuilder: (context, index) {
+        final phrase = appState.favorites[index];
+        return ListTile(
+          leading: Icon(Icons.favorite),
+          title: Text(phrase),
+          trailing: IconButton(
+            icon: Icon(Icons.delete),
+            onPressed: () {
+              appState.removeFavorite(phrase);
+            },
+            tooltip: 'Remove',
           ),
-      ],
+        );
+      },
     );
   }
 }
